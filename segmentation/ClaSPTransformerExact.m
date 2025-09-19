@@ -93,10 +93,19 @@ classdef ClaSPTransformerExact < handle
                 distances = zeros(1, numWindows);
                 for j = 1:numWindows
                     if stds(i) > 0 && stds(j) > 0
+                        % Both windows have variance - use normalized distance
                         normalizedDot = (dotProducts(j) - m * means(i) * means(j)) / (m * stds(i) * stds(j));
                         distances(j) = 2 * m * (1 - normalizedDot);
+                    elseif stds(i) == 0 && stds(j) == 0
+                        % Both windows are constant - use mean difference
+                        if abs(means(i) - means(j)) < 1e-10
+                            distances(j) = 0;  % Same constant value
+                        else
+                            distances(j) = 2 * m * abs(means(i) - means(j)) / max(abs(means(i)), abs(means(j)));
+                        end
                     else
-                        distances(j) = 2 * m;  % Maximum distance for constant windows
+                        % One constant, one not - maximum distance
+                        distances(j) = 2 * m;
                     end
                 end
 
@@ -140,32 +149,22 @@ classdef ClaSPTransformerExact < handle
         end
 
         function dotProducts = slidingDotProduct(obj, query, timeSeries, m)
-            % SLIDINGDOTPRODUCT Compute sliding dot product using FFT
+            % SLIDINGDOTPRODUCT Compute sliding dot product
             %
-            % This follows the exact Python implementation using FFT
+            % Direct implementation for correctness
 
             n = length(timeSeries);
             numWindows = n - m + 1;
+            dotProducts = zeros(numWindows, 1);
 
-            % Handle odd length (Python implementation detail)
-            timeSeriesAdd = 0;
-            if mod(n, 2) == 1
-                timeSeries = [0; timeSeries];
-                timeSeriesAdd = 1;
+            % Ensure query is row vector
+            query = query(:)';
+
+            % Compute dot product for each window
+            for i = 1:numWindows
+                window = timeSeries(i:i+m-1)';
+                dotProducts(i) = sum(query .* window);
             end
-
-            % Reverse query and pad
-            query = query(end:-1:1);  % Reverse
-            query = [query, zeros(1, n - m + timeSeriesAdd)];
-
-            % Compute FFT-based convolution
-            fftSeries = fft(timeSeries);
-            fftQuery = fft(query);
-            result = ifft(fftSeries .* fftQuery');
-
-            % Extract relevant portion
-            dotProducts = real(result(m + timeSeriesAdd:end));
-            dotProducts = dotProducts(1:numWindows);  % Trim to correct length
         end
 
         function profile = calcProfile(obj, m, knnMask, exclusionZone)
@@ -221,7 +220,7 @@ classdef ClaSPTransformerExact < handle
         function auc = rocAucScore(obj, yTrue, yPred)
             % ROCAUCSCORE Compute ROC-AUC score
             %
-            % This follows the exact Python sklearn implementation
+            % Fixed implementation that handles ties correctly
 
             % Handle edge cases
             if length(unique(yTrue)) < 2
@@ -229,32 +228,46 @@ classdef ClaSPTransformerExact < handle
                 return;
             end
 
-            % Convert to logical for easier handling
-            yTrue = logical(yTrue);
-
-            % Sort by prediction scores (descending)
-            [~, sortIdx] = sort(yPred, 'descend');
-            sortedLabels = yTrue(sortIdx);
-
-            % Compute counts
-            numPos = sum(yTrue);
-            numNeg = length(yTrue) - numPos;
+            numPos = sum(yTrue == 1);
+            numNeg = sum(yTrue == 0);
 
             if numPos == 0 || numNeg == 0
                 auc = 0.5;
                 return;
             end
 
-            % Compute cumulative TP and FP
-            cumulativeTP = cumsum(sortedLabels(:));
-            cumulativeFP = cumsum(~sortedLabels(:));
+            % Handle the case where all predictions are the same (ties)
+            if length(unique(yPred)) == 1
+                auc = 0.5;
+                return;
+            end
 
-            % Compute TPR and FPR
-            tpr = [0; cumulativeTP / numPos];
-            fpr = [0; cumulativeFP / numNeg];
+            % Sort by predictions in descending order
+            [~, sortIdx] = sort(yPred, 'descend');
+            sortedLabels = yTrue(sortIdx);
+
+            % Build TPR and FPR for each threshold
+            tpr = zeros(length(yTrue) + 1, 1);
+            fpr = zeros(length(yTrue) + 1, 1);
+
+            tpr(1) = 0;
+            fpr(1) = 0;
+
+            for i = 1:length(yTrue)
+                if sortedLabels(i) == 1
+                    tpr(i+1) = tpr(i) + 1/numPos;
+                    fpr(i+1) = fpr(i);
+                else
+                    tpr(i+1) = tpr(i);
+                    fpr(i+1) = fpr(i) + 1/numNeg;
+                end
+            end
 
             % Compute AUC using trapezoidal rule
-            auc = trapz(fpr, tpr);
+            auc = 0;
+            for i = 1:length(fpr)-1
+                auc = auc + 0.5 * (fpr(i+1) - fpr(i)) * (tpr(i+1) + tpr(i));
+            end
 
             % Ensure AUC is in [0, 1]
             auc = max(0, min(1, auc));

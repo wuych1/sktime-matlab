@@ -3,7 +3,15 @@
     "allow": [
       "WebFetch(domain:github.com)",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "Bash(matlab:*)"
+      "Bash(matlab:*)",
+      "Bash(../sktime/Scripts/python clasp_reference.py)",
+      "Bash(sktime/Scripts/python:*)",
+      "Bash(../sktime/Scripts/python simple_test.py)",
+      "Bash(../sktime/Scripts/python validate_subfunctions.py)",
+      "Bash(../sktime/Scripts/python validate_simple.py)",
+      "Bash(../sktime/Scripts/python debug_clasp_internals.py)",
+      "WebSearch",
+      "Bash(../sktime/Scripts/python extract_exact_algorithm.py)"
     ],
     "deny": [],
     "ask": []
