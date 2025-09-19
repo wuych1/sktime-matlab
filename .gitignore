@@ -1,0 +1,27 @@
+# Exclude everything by default
+*
+
+# Include necessary directories and files
+!segmentation/
+!segmentation/**
+
+# Exclude debug and temporary files
+segmentation/debug_*.m
+segmentation/*_temp.m
+
+# Exclude MATLAB temporary files
+*.asv
+*.m~
+
+# Exclude system files
+.DS_Store
+Thumbs.db
+
+# Include documentation
+!README.md
+!LICENSE
+!*.md
+
+# Include git files
+!.gitignore
+!.gitattributes
