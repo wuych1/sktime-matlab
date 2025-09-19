@@ -1,5 +1,5 @@
 %% ClaSP Time Series Segmentation Example
-% This script demonstrates how to use the ClaSPSegmenterExact class for
+% This script demonstrates how to use the ClaSPSegmenter class for
 % time series segmentation. It includes examples with synthetic data
 % and shows how to visualize the results.
 
@@ -24,7 +24,7 @@ timeSeries = [ts1, ts2, ts3]';
 trueChangePoints = [300, 600];  % Known change points
 
 % Create ClaSP segmenter
-clasp = ClaSPSegmenterExact('PeriodLength', 50, 'NumChangePoints', 2, 'ExclusionRadius', 0.05);
+clasp = ClaSPSegmenter('PeriodLength', 50, 'NumChangePoints', 2, 'ExclusionRadius', 0.05);
 
 % Fit and predict change points
 fprintf('Fitting ClaSP model...\n');
@@ -96,7 +96,7 @@ regime4 = 1 + 0.3 * (t(601:800) - 600) / 200 + 0.15 * randn(1, 200); % Linear tr
 complexTs = [regime1, regime2, regime3, regime4]';
 
 % Use ClaSP with automatic window size detection
-claspAuto = ClaSPSegmenterExact('NumChangePoints', 5);
+claspAuto = ClaSPSegmenter('NumChangePoints', 5);
 
 % Find optimal window size
 optimalWindow = claspAuto.findDominantWindowSizes(complexTs);
@@ -144,7 +144,7 @@ testResults = cell(length(windowSizes), length(exclusionRadii));
 
 for i = 1:length(windowSizes)
     for j = 1:length(exclusionRadii)
-        clasp_test = ClaSPSegmenterExact('PeriodLength', windowSizes(i), ...
+        clasp_test = ClaSPSegmenter('PeriodLength', windowSizes(i), ...
                                    'NumChangePoints', 2, ...
                                    'ExclusionRadius', exclusionRadii(j));
 
@@ -166,7 +166,7 @@ fprintf('\n=== Example 4: API Usage Pattern ===\n');
 
 % Demonstrate the Python-like API
 periodSize = 30;
-clasp = ClaSPSegmenterExact('PeriodLength', periodSize, 'NumChangePoints', 5);
+clasp = ClaSPSegmenter('PeriodLength', periodSize, 'NumChangePoints', 5);
 
 % Fit and predict (matching Python API style)
 foundCps = clasp.fitPredict(timeSeries);

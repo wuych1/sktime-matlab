@@ -16,7 +16,7 @@ timeSeries = [ts1, ts2, ts3]';
 trueChangePoints = [300, 600];
 
 % Test exact implementation
-claspExact = ClaSPSegmenterExact('PeriodLength', 30, 'NumChangePoints', 2);
+claspExact = ClaSPSegmenter('PeriodLength', 30, 'NumChangePoints', 2);
 tic;
 foundCpsExact = claspExact.fitPredict(timeSeries);
 timeExact = toc;
@@ -38,7 +38,7 @@ windowSizes = [20, 30, 40];
 for i = 1:length(windowSizes)
     fprintf('Testing window size %d:\n', windowSizes(i));
 
-    claspTest = ClaSPSegmenterExact('PeriodLength', windowSizes(i), 'NumChangePoints', 2);
+    claspTest = ClaSPSegmenter('PeriodLength', windowSizes(i), 'NumChangePoints', 2);
     foundCps = claspTest.fitPredict(timeSeries);
     accuracy = calculateDetectionAccuracy(trueChangePoints, foundCps', tolerance);
 
@@ -50,7 +50,7 @@ fprintf('\n=== Test 3: API Compatibility Test ===\n');
 
 % Test the Python-like API
 periodSize = 30;
-clasp = ClaSPSegmenterExact('PeriodLength', periodSize, 'NumChangePoints', 2);
+clasp = ClaSPSegmenter('PeriodLength', periodSize, 'NumChangePoints', 2);
 
 % Fit and predict
 foundCps = clasp.fitPredict(timeSeries);
