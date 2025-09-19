@@ -11,7 +11,8 @@
       "Bash(../sktime/Scripts/python validate_simple.py)",
       "Bash(../sktime/Scripts/python debug_clasp_internals.py)",
       "WebSearch",
-      "Bash(../sktime/Scripts/python extract_exact_algorithm.py)"
+      "Bash(../sktime/Scripts/python extract_exact_algorithm.py)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []
