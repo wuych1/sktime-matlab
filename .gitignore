@@ -4,6 +4,8 @@
 # Include necessary directories and files
 !segmentation/
 !segmentation/**
+!examples/
+!examples/**
 
 # Exclude debug and temporary files
 segmentation/debug_*.m
