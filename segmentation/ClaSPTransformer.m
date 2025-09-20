@@ -19,7 +19,7 @@ classdef ClaSPTransformer < handle
             % Constructor
         end
 
-        function [profile, knnMask] = transform(obj, timeSeries, windowSize, varargin)
+        function [profile, knnMask] = transform(obj, timeSeries, windowSize, options)
             % TRANSFORM Compute ClaSP classification score profile
             %
             % SYNTAX:
@@ -40,15 +40,16 @@ classdef ClaSPTransformer < handle
             %   knnMask - k-NN indices matrix (k x numWindows)
 
             % Parse input arguments
-            p = inputParser;
-            addRequired(p, 'timeSeries', @(x) validateattributes(x, {'numeric'}, {'vector'}));
-            addRequired(p, 'windowSize', @(x) validateattributes(x, {'numeric'}, {'scalar', 'positive', 'integer'}));
-            addParameter(p, 'K', obj.DEFAULT_K, @(x) validateattributes(x, {'numeric'}, {'scalar', 'positive', 'integer'}));
-            addParameter(p, 'ExclusionRadius', 0.05, @(x) validateattributes(x, {'numeric'}, {'scalar', 'nonnegative'}));
-            parse(p, timeSeries, windowSize, varargin{:});
+            arguments
+                obj
+                timeSeries (:,1) double {mustBeFinite}
+                windowSize (1,1) double {mustBePositive, mustBeInteger}
+                options.K (1,1) double {mustBePositive, mustBeInteger} = obj.DEFAULT_K
+                options.ExclusionRadius (1,1) double {mustBeNonnegative} = 0.05
+            end
 
-            k = p.Results.K;
-            exclusionRadius = p.Results.ExclusionRadius;
+            k = options.K;
+            exclusionRadius = options.ExclusionRadius;
             timeSeries = timeSeries(:);  % Ensure column vector
             n = length(timeSeries);
             m = windowSize;

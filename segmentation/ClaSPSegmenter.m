@@ -39,17 +39,17 @@ classdef ClaSPSegmenter < handle
     end
 
     methods
-        function obj = ClaSPSegmenter(varargin)
+        function obj = ClaSPSegmenter(options)
             % Constructor
-            p = inputParser;
-            addParameter(p, 'PeriodLength', 10, @(x) validateattributes(x, {'numeric'}, {'scalar', 'positive', 'integer'}));
-            addParameter(p, 'NumChangePoints', 1, @(x) validateattributes(x, {'numeric'}, {'scalar', 'nonnegative', 'integer'}));
-            addParameter(p, 'ExclusionRadius', 0.05, @(x) validateattributes(x, {'numeric'}, {'scalar', 'nonnegative'}));
-            parse(p, varargin{:});
+            arguments
+                options.PeriodLength (1,1) double {mustBePositive, mustBeInteger} = 10
+                options.NumChangePoints (1,1) double {mustBeNonnegative, mustBeInteger} = 1
+                options.ExclusionRadius (1,1) double {mustBeNonnegative} = 0.05
+            end
 
-            obj.PeriodLength = p.Results.PeriodLength;
-            obj.NumChangePoints = p.Results.NumChangePoints;
-            obj.ExclusionRadius = p.Results.ExclusionRadius;
+            obj.PeriodLength = options.PeriodLength;
+            obj.NumChangePoints = options.NumChangePoints;
+            obj.ExclusionRadius = options.ExclusionRadius;
 
             obj.transformer = ClaSPTransformer();
         end
@@ -83,15 +83,15 @@ classdef ClaSPSegmenter < handle
             obj.Profiles = profiles;
         end
 
-        function windowSizes = findDominantWindowSizes(obj, timeSeries, varargin)
+        function windowSizes = findDominantWindowSizes(obj, timeSeries, options)
             % FINDDOMINANTWINDOWSIZES Find optimal window sizes using FFT
+            arguments
+                obj
+                timeSeries (:,1) double {mustBeFinite}
+                options.Offset (1,1) double {mustBePositive} = 0.1
+            end
 
-            p = inputParser;
-            addRequired(p, 'timeSeries', @(x) validateattributes(x, {'numeric'}, {'vector'}));
-            addParameter(p, 'Offset', 0.1, @(x) validateattributes(x, {'numeric'}, {'scalar', 'positive'}));
-            parse(p, timeSeries, varargin{:});
-
-            offset = p.Results.Offset;
+            offset = options.Offset;
             timeSeries = timeSeries(:);
             n = length(timeSeries);
 
