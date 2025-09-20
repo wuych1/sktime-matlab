@@ -2,6 +2,11 @@
 % This script demonstrates how to use the ClaSPSegmenter class for
 % time series segmentation. It includes examples with synthetic data
 % and shows how to visualize the results.
+%
+% Important Notes:
+% - ClaSP automatically excludes regions near series boundaries
+% - Use ExclusionRadius=0.02 or less if boundary changes are expected
+% - Window size should match the expected pattern length in your data
 
 clear; clc; close all;
 

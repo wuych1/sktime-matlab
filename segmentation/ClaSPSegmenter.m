@@ -1,9 +1,29 @@
 classdef ClaSPSegmenter < handle
     % CLASPSEGMENTER ClaSP (Classification Score Profile) segmentation algorithm
+    %
+    % ClaSP segments time series by finding optimal change points using
+    % k-nearest neighbor classification and ROC-AUC scoring. The algorithm
+    % recursively identifies split points that best separate subsequences
+    % into distinct classes.
+    %
+    % Key Features:
+    %   - Automatic boundary exclusion to prevent spurious edge detections
+    %   - Adjustable exclusion radius for controlling sensitivity
+    %   - Priority queue-based recursive segmentation
+    %   - Compatible with Python sktime implementation
 
     properties (Access = public)
+        % PeriodLength - Window size for sliding window analysis (default: 10)
+        %   Typically set to the expected period/pattern length in your data
         PeriodLength (1,1) double {mustBePositive, mustBeInteger} = 10
+
+        % NumChangePoints - Number of change points to detect (default: 1)
         NumChangePoints (1,1) double {mustBeNonnegative, mustBeInteger} = 1
+
+        % ExclusionRadius - Fraction of series length for exclusion zones (default: 0.05)
+        %   Controls how close change points can be to each other and boundaries
+        %   - 0.05-0.1: Standard setting, excludes 5-10% around each point
+        %   - 0.02 or less: Use when boundary changes are expected
         ExclusionRadius (1,1) double {mustBeNonnegative} = 0.05
     end
 
@@ -36,6 +56,15 @@ classdef ClaSPSegmenter < handle
 
         function changePoints = fitPredict(obj, timeSeries)
             % FITPREDICT Fit ClaSP model and predict change points
+            %
+            % Inputs:
+            %   timeSeries - Numeric vector of time series data
+            %
+            % Outputs:
+            %   changePoints - Column vector of detected change point indices
+            %
+            % Note: Change points near series boundaries (within ExclusionRadius)
+            %       will be automatically filtered to avoid boundary artifacts
 
             validateattributes(timeSeries, {'numeric'}, {'vector', 'finite'});
             timeSeries = timeSeries(:);
@@ -166,8 +195,9 @@ classdef ClaSPSegmenter < handle
                         continue;
                     end
 
-                    exclusionZone = round(length(subRange) * obj.ExclusionRadius);
-                    if length(subRange) - obj.PeriodLength <= 2
+                    % Important: Don't use segment-based exclusion for feasibility check
+                    % Just check if segment is large enough for window
+                    if length(subRange) <= obj.PeriodLength
                         continue;
                     end
 
@@ -176,18 +206,13 @@ classdef ClaSPSegmenter < handle
                     try
                         [localProfile, ~] = obj.transformer.transform(subSeries, obj.PeriodLength, 'ExclusionRadius', obj.ExclusionRadius);
 
+                        % Don't apply additional exclusion here - profile already has it
                         validProfile = localProfile;
-                        if exclusionZone > 0
-                            validProfile(1:min(exclusionZone, length(validProfile))) = -inf;
-                            endIdx = max(1, length(validProfile) - exclusionZone + 1);
-                            if endIdx <= length(validProfile)
-                                validProfile(endIdx:end) = -inf;
-                            end
-                        end
 
-                        [localMaxScore, localMaxIdx] = max(validProfile);
+                        [localMaxScore, localMaxIdx] = max(localProfile);
 
-                        if ~isempty(localMaxIdx) && localMaxScore > -inf && localMaxIdx > 0
+                        % Don't require a minimum score - let the queue sorting handle priority
+                        if ~isempty(localMaxIdx) && localMaxIdx > 0
                             queue{end+1} = struct('priority', -localMaxScore, 'range', subRange, 'changePoint', localMaxIdx, 'profile', localProfile);
                             fprintf('Added sub-range [%d:%d] to queue with score %.4f\n', subRange(1), subRange(end), localMaxScore);
                         end
@@ -204,15 +229,26 @@ classdef ClaSPSegmenter < handle
 
         function isTrivial = isTrivialMatch(obj, newChangePoint, existingChangePoints, timeSeries)
             % ISTRIVIALMATCH Check if change point is too close to existing ones
+            % Matches Python implementation: includes boundaries in exclusion check
 
-            if isempty(existingChangePoints)
-                isTrivial = false;
-                return;
+            % Add boundaries (start and end) to the change points list
+            % This is critical for matching Python behavior!
+            n = length(timeSeries);
+            allChangePoints = [1; existingChangePoints(:); n];
+
+            exclusionZone = round(obj.ExclusionRadius * n);
+
+            % Check if candidate is within exclusion zone of any change point
+            for cp = allChangePoints'
+                leftBegin = max(1, cp - exclusionZone);
+                rightEnd = min(n, cp + exclusionZone);
+                if newChangePoint >= leftBegin && newChangePoint <= rightEnd
+                    isTrivial = true;
+                    return;
+                end
             end
 
-            exclusionZone = round(obj.ExclusionRadius * length(timeSeries));
-            distances = abs(existingChangePoints - newChangePoint);
-            isTrivial = any(distances < exclusionZone);
+            isTrivial = false;
         end
     end
 end

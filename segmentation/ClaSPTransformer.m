@@ -1,8 +1,14 @@
 classdef ClaSPTransformer < handle
     % CLASPTRANSFORMER ClaSP (Classification Score Profile) transformer
     %
-    % This implementation follows the exact algorithm specification from the
-    % Python reference implementation in aeon-toolkit.
+    % Computes the classification score profile for a time series by:
+    % 1. Extracting sliding windows and computing k-nearest neighbors
+    % 2. Creating binary classification problems at each split point
+    % 3. Evaluating split quality using ROC-AUC scores
+    % 4. Interpolating gaps while avoiding boundary artifacts
+    %
+    % This implementation matches the Python sktime/aeon-toolkit version,
+    % including boundary exclusion and trivial match prevention.
 
     properties (Access = private, Constant)
         DEFAULT_K = 3
@@ -19,14 +25,18 @@ classdef ClaSPTransformer < handle
             % SYNTAX:
             %   [profile, knnMask] = obj.transform(timeSeries, windowSize)
             %   [profile, knnMask] = obj.transform(timeSeries, windowSize, 'K', k)
+            %   [profile, knnMask] = obj.transform(timeSeries, windowSize, 'ExclusionRadius', r)
             %
             % INPUT ARGUMENTS:
             %   timeSeries - Input time series (numeric vector)
             %   windowSize - Sliding window size (positive integer)
             %   'K'        - Number of nearest neighbors (default: 3)
+            %   'ExclusionRadius' - Fraction for exclusion zones (default: 0.05)
             %
             % OUTPUT ARGUMENTS:
             %   profile - Classification score profile (numeric vector)
+            %           - Positions near boundaries filled with low values
+            %           - Interior gaps interpolated linearly
             %   knnMask - k-NN indices matrix (k x numWindows)
 
             % Parse input arguments
@@ -293,11 +303,32 @@ classdef ClaSPTransformer < handle
                 return;
             end
 
-            % Linear interpolation for interior NaN values
-            profile(nanIdx) = interp1(validIdx, profile(validIdx), find(nanIdx), 'linear', 'extrap');
+            % Get min value of valid points for boundary fill
+            % Use slightly below minimum to avoid creating artificial maxima
+            minValid = min(profile(validIdx));
+            boundaryValue = minValid - 0.01;  % Slightly below minimum
 
-            % Handle any remaining NaN values
-            profile(isnan(profile)) = 0.5;
+            % Linear interpolation for interior NaN values only
+            nanIndices = find(nanIdx);
+            for i = 1:length(nanIndices)
+                idx = nanIndices(i);
+                % Check if this is interior (between valid points) or boundary
+                if idx > validIdx(1) && idx < validIdx(end)
+                    % Interior - interpolate
+                    % Find surrounding valid points
+                    leftValid = validIdx(find(validIdx < idx, 1, 'last'));
+                    rightValid = validIdx(find(validIdx > idx, 1, 'first'));
+                    % Linear interpolation
+                    weight = (idx - leftValid) / (rightValid - leftValid);
+                    profile(idx) = profile(leftValid) * (1 - weight) + profile(rightValid) * weight;
+                else
+                    % Boundary - use low value to avoid artificial maxima
+                    profile(idx) = boundaryValue;
+                end
+            end
+
+            % Handle any remaining NaN values (shouldn't be any)
+            profile(isnan(profile)) = boundaryValue;
         end
     end
 end
